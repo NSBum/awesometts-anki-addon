@@ -99,6 +99,9 @@ class Voice(abc.ABC):
 class StandardVoice(Voice):
     def __init__(self, voice_data):
         self.language_code = voice_data['language_code']
+
+        # we need the audio_language_code for Amazon Polly service
+        self.audio_language_code = voice_data['audio_language_code']
         self.voice_key = voice_data['voice_key']
         self.voice_description = voice_data['voice_description']
 
