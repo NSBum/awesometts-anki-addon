@@ -6,6 +6,8 @@ Service implementation for the Amazon/AWS Polly service, routed through the Lang
 import time
 import datetime
 import requests
+import subprocess
+import shlex
 from xml.etree import ElementTree
 from .base import Service
 from .languages import StandardVoice
@@ -85,24 +87,35 @@ class Amazon(Service):
     
     def run(self, text, options, path):
 
-        if not self.languagetools.use_plus_mode():
-            raise ValueError(f'Amazon is only available on AwesomeTTS Plus')
+        # Nope ↓
+        # raise ValueError(f'Amazon is only available on AwesomeTTS Plus')
 
         voice_key = options['voice']
         voice = self.get_voice_for_key(voice_key)
 
         rate = options['rate']
         pitch = options['pitch']
-
-        self._logger.info(f'using language tools API')
-        service = 'Amazon'
-        voice_key = voice.get_voice_key()
-        language = voice.get_language_code()
-        options = {
-            'pitch': pitch,
-            'rate': rate
-        }
-        self.languagetools.generate_audio_v2(text, service, 'batch', language, 'n/a', voice_key, options, path)
+        voice_key = options['voice']
+        voice = self.get_voice_for_key(voice_key)
+        if self.languagetools.use_plus_mode():
+            self._logger.info(f'using language tools API')
+            service = 'Amazon'
+            voice_key = voice.get_voice_key()
+            language = voice.get_language_code()
+            options = {
+                'pitch': pitch,
+                'rate': rate
+            }
+            self.languagetools.generate_audio_v2(text, service, 'batch', language, 'n/a', voice_key, options, path)
+        else:
+            # roll your own, baby; needs AWS CLI installed
+            # along with credentials therewith
+            lang_code = voice.audio_language_code.replace('_', '-')
+            voice_name = voice.get_key()
+            (engine, voice_id) = (voice_name['engine'], voice_name['voice_id'])
+            cmd = f'aws polly synthesize-speech --engine {engine} --language-code {lang_code} --output-format mp3 --text "{text}" --voice-id {voice_id} "{path}"'
+            cmd_list = shlex.split(cmd)
+            resp = subprocess.run(cmd_list, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 
